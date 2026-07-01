@@ -1,12 +1,14 @@
 spring:
   application:
     name: project
-
+# Spring application configuration (DB environment variables)
   datasource:
     url: jdbc:mysql://localhost:3306/rejection_detection
     username: ${REJECTION_DETECTION_DB_USERNAME}
     password: ${REJECTION_DETECTION_DB_PASSWORD}
 
+# JPA (Java Persistence API) configuration for Hibernate and database interaction
+# ddl-auto is set to validate because I hate having possible duplicate tables that are created during application startup
   jpa:
     hibernate:
       ddl-auto: validate
@@ -14,4 +16,17 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
+
+# Security configuration for OAuth2 clients (Google ID & OAUTH environment variables)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_OAUTH_CLIENT_ID}
+            client-secret: ${GOOGLE_OAUTH_CLIENT_SECRET}
+            scope:
+              - openid
+              - email
+              - profile
 

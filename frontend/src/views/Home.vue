@@ -31,7 +31,6 @@ const router = useRouter()
     <section class="hero">
       <div class="hero-text">
         
-
         <h1>
           Turn job rejection emails into
           <span>trackable insights.</span>
