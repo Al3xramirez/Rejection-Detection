@@ -4,7 +4,6 @@ import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
@@ -20,7 +19,8 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
-        
+        // Forward cookies (JSESSIONID) between Vite dev server and Spring backend. For now just a split server setup
+        cookieDomainRewrite: 'localhost',
       },
     },
   }
