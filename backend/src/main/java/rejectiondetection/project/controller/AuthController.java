@@ -31,8 +31,8 @@ public class AuthController {
      */
     @GetMapping("/api/auth/me")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> me(
-            @AuthenticationPrincipal OAuth2User principal) {
+    public ResponseEntity<Map<String, Object>> me(@AuthenticationPrincipal OAuth2User principal) {
+        
         if (principal == null) {
             return ResponseEntity.status(401).build();
         }
