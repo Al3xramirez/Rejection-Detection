@@ -3,7 +3,6 @@ package rejectiondetection.project.service;
 import java.util.Optional;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
-import rejectiondetection.project.controller.AuthController;
 import rejectiondetection.project.entity.UsersEntity;
 import rejectiondetection.project.repository.UsersRepository;
 /* 
@@ -15,12 +14,10 @@ import rejectiondetection.project.repository.UsersRepository;
 @Service
 public class AuthenticatedUserService {
 
-    private final AuthController authController;
     private final UsersRepository usersRepository;
 
-    public AuthenticatedUserService(UsersRepository usersRepository, AuthController authController) {
+    public AuthenticatedUserService(UsersRepository usersRepository) {
         this.usersRepository = usersRepository;
-        this.authController = authController;
     }
     // Optional is used here to indicate that the method may or may not return a UsersEntity.
     // This allows handling cases where the user is not authenticated or required attributes are missing.
