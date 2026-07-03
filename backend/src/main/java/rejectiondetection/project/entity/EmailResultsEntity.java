@@ -5,11 +5,26 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 @Entity
-@Table(name = "email_results")
+@Table(
+	name = "email_results",
+	uniqueConstraints = {
+		@UniqueConstraint(name = "uq_email_results_user_message", columnNames = {"user_id", "gmail_message_id"})
+	},
+	indexes = {
+		@Index(name = "idx_email_results_user_id", columnList = "user_id"),
+		@Index(name = "idx_email_results_status", columnList = "status"),
+		@Index(name = "idx_email_results_received_at", columnList = "received_at")
+	}
+)
 public class EmailResultsEntity {
 
 	@Id
@@ -18,6 +33,9 @@ public class EmailResultsEntity {
 
 	@Column(name = "user_id", nullable = false)
 	private Long userId;
+
+	@Column(name = "gmail_message_id", nullable = false, length = 255)
+	private String gmailMessageId;
 
 	@Column(name = "company_name", length = 150)
 	private String companyName;
@@ -31,6 +49,9 @@ public class EmailResultsEntity {
 	@Column(name = "status", nullable = false, length = 50)
 	private String status;
 
+	@Column(name = "confidence_score", precision = 5, scale = 2)
+	private BigDecimal confidenceScore;
+
 	@Column(name = "matched_phrase", length = 255)
 	private String matchedPhrase;
 
@@ -43,13 +64,16 @@ public class EmailResultsEntity {
 	@Column(name = "received_at")
 	private LocalDateTime receivedAt;
 
-	@Column(name = "scanned_at")
+	@CreationTimestamp
+	@Column(name = "scanned_at", nullable = false, updatable = false)
 	private LocalDateTime scannedAt;
 	
-	@Column(name = "updated_at")
+	@UpdateTimestamp
+	@Column(name = "updated_at", nullable = false)
 	private LocalDateTime updatedAt;
 
-	@Column(name = "created_at")
+	@CreationTimestamp
+	@Column(name = "created_at", nullable = false, updatable = false)
 	private LocalDateTime createdAt;
 
 	public Long getId() {
@@ -66,6 +90,14 @@ public class EmailResultsEntity {
 
 	public void setUserId(Long userId) {
 		this.userId = userId;
+	}
+
+	public String getGmailMessageId() {
+		return gmailMessageId;
+	}
+
+	public void setGmailMessageId(String gmailMessageId) {
+		this.gmailMessageId = gmailMessageId;
 	}
 
 	public String getCompanyName() {
@@ -98,6 +130,14 @@ public class EmailResultsEntity {
 
 	public void setStatus(String status) {
 		this.status = status;
+	}
+
+	public BigDecimal getConfidenceScore() {
+		return confidenceScore;
+	}
+
+	public void setConfidenceScore(BigDecimal confidenceScore) {
+		this.confidenceScore = confidenceScore;
 	}
 
 	public String getMatchedPhrase() {
