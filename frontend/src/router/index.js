@@ -1,14 +1,19 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
+import Dashboard from '../views/Dashboard.vue'
+import Profile from '../views/Profile.vue'
+import Settings from '../views/Settings.vue'
 
+// Router is responsible for creating the web history and defining the application's route structure.
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/', name: 'Home', component: Home },
     { path: '/login', name: 'Login', component: Login },
-    
-    //{ path: '/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } }
+    { path: '/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } }, // requires authentication
+    { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } }, // requires authentication
+    { path: '/settings', name: 'Settings', component: Settings, meta: { requiresAuth: true } }, // requires authentication
   ],
 })
 

@@ -29,8 +29,8 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
-                .defaultSuccessUrl("http://localhost:5173/", true) // Will redirect to dashboard soon
-            )
+                .defaultSuccessUrl("http://localhost:5173/dashboard", true) //redirect to dashboard page now
+            ) 
             .logout(Customizer.withDefaults());
 
         return http.build();
