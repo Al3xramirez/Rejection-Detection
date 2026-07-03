@@ -8,6 +8,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Optional;
+import rejectiondetection.project.entity.UsersEntity;
+import rejectiondetection.project.service.AuthenticatedUserService;
 
 /**
  * Controller class for handling authentication-related endpoints.
@@ -15,6 +19,12 @@ import java.util.Map;
  */
 @Controller
 public class AuthController {
+
+    private final AuthenticatedUserService authenticatedUserService;
+
+    public AuthController(AuthenticatedUserService authenticatedUserService) {
+        this.authenticatedUserService = authenticatedUserService;
+    }
 
     /**
      * Redirects the browser to the Google OAuth2 authorization page.
@@ -32,14 +42,19 @@ public class AuthController {
     @GetMapping("/api/auth/me")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> me(@AuthenticationPrincipal OAuth2User principal) {
-        
-        if (principal == null) {
+
+        Optional<UsersEntity> maybeUser = authenticatedUserService.ensureAndGetUser(principal);
+        if (maybeUser.isEmpty()) {
             return ResponseEntity.status(401).build();
         }
-        return ResponseEntity.ok(Map.of(
-                "email", principal.getAttribute("email"),
-                "name",  principal.getAttribute("name"),
-                "picture", principal.getAttribute("picture")
-        ));
+
+        UsersEntity user = maybeUser.get();
+        Map<String, Object> response = new HashMap<>();
+        response.put("email", user.getEmail());
+        response.put("name", user.getDisplayName());
+        response.put("picture", user.getPictureUrl());
+        response.put("userId", user.getId());
+
+        return ResponseEntity.ok(response);
     }
 }
