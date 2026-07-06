@@ -1,18 +1,55 @@
 <script setup>
-/*
-  Profile view.
-  This view represents the profile page of the application.
-  It includes a header, some placeholder content, and the FooterTabs component.
-  This will eventually include users personal information such as name, email, and profile picture.
-*/
+import { onMounted, ref } from 'vue'
 import FooterTabs from '../components/FooterTabs.vue'
+
+const user = ref(null)
+const isLoading = ref(true)
+const errorMessage = ref('')
+
+async function loadProfile() {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch('/api/auth/me', { credentials: 'include' })
+    if (!response.ok) {
+      errorMessage.value = 'Unable to load your profile right now.'
+      return
+    }
+
+    user.value = await response.json()
+  } catch {
+    errorMessage.value = 'Network error while loading profile.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+onMounted(loadProfile)
 </script>
 
 <template>
   <main class="page-shell">
     <section class="page-panel">
       <h1>Profile</h1>
-      <p>Profile page content will go here.</p>
+
+      <p v-if="isLoading" class="helper-text">Loading profile...</p>
+      <p v-else-if="errorMessage" class="helper-text error">{{ errorMessage }}</p>
+
+      <div v-else-if="user" class="profile-card">
+        <img
+          v-if="user.picture"
+          :src="user.picture"
+          alt="Google profile picture"
+          class="avatar"
+        />
+        <div class="profile-meta">
+          <h2>{{ user.name || 'Google User' }}</h2>
+          <p>{{ user.email || 'No email provided' }}</p>
+        </div>
+      </div>
+
+      <p v-else class="helper-text">No profile data found.</p>
     </section>
 
     <FooterTabs />
@@ -43,6 +80,43 @@ import FooterTabs from '../components/FooterTabs.vue'
 }
 
 .page-panel p {
+  margin: 0;
+  color: #c4cbc7;
+}
+
+.helper-text {
+  color: #c4cbc7;
+}
+
+.helper-text.error {
+  color: #fca5a5;
+}
+
+.profile-card {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #313834;
+  background: rgba(17, 20, 19, 0.95);
+  padding: 16px;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #22c55e;
+}
+
+.profile-meta h2 {
+  margin: 0 0 4px;
+  color: #22c55e;
+  font-size: 1.2rem;
+}
+
+.profile-meta p {
   margin: 0;
   color: #c4cbc7;
 }
