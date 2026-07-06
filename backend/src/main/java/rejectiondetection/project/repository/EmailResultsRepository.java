@@ -16,9 +16,9 @@ public interface EmailResultsRepository extends JpaRepository<EmailResultsEntity
     // how many emails of a certain status (e.g., REJECTION) a user has received.
     long countByUserIdAndStatus(Long userId, String status);
 
-    // Retrieves the top 50 email results for a specific user and status, ordered by the received date in descending order.
-    // This is useful for quickly accessing the most recent email results of a certain status (e.g., REJECTION) for a user.
-    List<EmailResultsEntity> findTop50ByUserIdAndStatusOrderByReceivedAtDesc(Long userId, String status);
+    // Retrieves latest 50 results regardless of status for the dashboard feed.
+    List<EmailResultsEntity> findTop50ByUserIdOrderByReceivedAtDesc(Long userId);
+
     //lmao I definitly AI'd this query, but it works for aggregating the monthly rejection counts for a user.
     @Query(value = """
         SELECT YEAR(received_at) AS y, MONTH(received_at) AS m, COUNT(*) AS total
@@ -36,5 +36,23 @@ public interface EmailResultsRepository extends JpaRepository<EmailResultsEntity
     // 3. The total count of email results for that month (as Long)
     // This allows the application to easily aggregate and display monthly rejection counts for a user.
     List<Object[]> findMonthlyRejectionCounts(Long userId, String status);
+
+    // Retrieves the monthly counts of email results grouped by status for a specific user.
+    @Query(value = """
+        SELECT YEAR(received_at) AS y, MONTH(received_at) AS m, status, COUNT(*) AS total
+        FROM email_results
+        WHERE user_id = :userId
+          AND received_at IS NOT NULL
+        GROUP BY YEAR(received_at), MONTH(received_at), status
+        ORDER BY y ASC, m ASC
+        """, nativeQuery = true)
+
+    // The method returns a list of Object arrays, where each array contains four elements:
+    // 1. The year (as Integer)
+    // 2. The month (as Integer)
+    // 3. The status (as String)
+    // 4. The total count of email results for that month and status (as Long)
+    // This allows the application to easily aggregate and display monthly email result counts grouped by status for a user.
+    List<Object[]> findMonthlyCountsByStatus(Long userId);
 
 }
