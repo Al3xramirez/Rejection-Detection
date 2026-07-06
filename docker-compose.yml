@@ -1,0 +1,57 @@
+services:
+
+ # MySQL Container. 
+ # States container name, env. varaibles, port 3306 -> 3306, volume to store data through container restarts
+  db:
+    image: mysql:8.4
+    container_name: rejection-db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: rejection_detection
+      MYSQL_USER: ${REJECTION_DETECTION_DB_USERNAME}
+      MYSQL_PASSWORD: ${REJECTION_DETECTION_DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+# Backend Container.
+# States container name, build context, Dockerfile, restart policy, 
+#dependencies (backend depends on db to operate), environment variables, Google OAuth credentials , and port 8080 -> 8080
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: rejection-backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      REJECTION_DETECTION_DB_USERNAME: ${REJECTION_DETECTION_DB_USERNAME}
+      REJECTION_DETECTION_DB_PASSWORD: ${REJECTION_DETECTION_DB_PASSWORD}
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/rejection_detection?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    ports:
+      - "8080:8080"
+
+# Frontend Container.
+# States container name, build context, Dockerfile, restart policy,
+# dependencies (frontend depends on backend to operate), and port 5173 -> 80 (port 80 is Nginx default port)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: rejection-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+# Volumes used for persistent storage, such as MySQL data, to ensure data is not lost when containers are restarted or removed
+volumes:
+  mysql_data:

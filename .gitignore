@@ -65,3 +65,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Local env secrets
+.env
