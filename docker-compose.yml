@@ -7,14 +7,19 @@ services:
     container_name: rejection-db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DOCKER_MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: rejection_detection
-      MYSQL_USER: ${REJECTION_DETECTION_DB_USERNAME}
-      MYSQL_PASSWORD: ${REJECTION_DETECTION_DB_PASSWORD}
+      MYSQL_USER: ${DOCKER_DB_USERNAME}
+      MYSQL_PASSWORD: ${DOCKER_DB_PASSWORD}
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
 # Backend Container.
 # States container name, build context, Dockerfile, restart policy, 
@@ -29,8 +34,8 @@ services:
       db:
         condition: service_healthy
     environment:
-      REJECTION_DETECTION_DB_USERNAME: ${REJECTION_DETECTION_DB_USERNAME}
-      REJECTION_DETECTION_DB_PASSWORD: ${REJECTION_DETECTION_DB_PASSWORD}
+      REJECTION_DETECTION_DB_USERNAME: ${DOCKER_DB_USERNAME}
+      REJECTION_DETECTION_DB_PASSWORD: ${DOCKER_DB_PASSWORD}
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
       SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/rejection_detection?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
