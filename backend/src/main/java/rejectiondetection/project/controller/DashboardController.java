@@ -14,12 +14,17 @@ import rejectiondetection.project.service.DashboardService;
 @RequestMapping("/api/dashboard")
 public class DashboardController {
 
+    // Single instance of DashboardService injected via constructor
     private final DashboardService dashboardService;
 
+    // Constructor injection of the DashboardService
     public DashboardController(DashboardService dashboardService) {
         this.dashboardService = dashboardService;
     }
 
+    // Endpoint to get dashboard data for the authenticated user
+    // Returns a DashboardResponseDto containing the user's dashboard information   
+    // If user is not Authenticated, returns a 401 Unauthorized response with an error message
     @GetMapping
     public ResponseEntity<?> dashboard(@AuthenticationPrincipal OAuth2User principal) {
         return dashboardService.buildDashboard(principal)

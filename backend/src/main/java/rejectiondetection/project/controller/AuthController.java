@@ -20,8 +20,10 @@ import rejectiondetection.project.service.AuthenticatedUserService;
 @Controller
 public class AuthController {
 
+    // Single instance of AuthenticatedUserService injected via constructor
     private final AuthenticatedUserService authenticatedUserService;
 
+    // Constructor injection of the AuthenticatedUserService
     public AuthController(AuthenticatedUserService authenticatedUserService) {
         this.authenticatedUserService = authenticatedUserService;
     }
