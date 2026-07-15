@@ -9,6 +9,11 @@ import org.springframework.stereotype.Component;
 public class EmailSyncScheduler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailSyncScheduler.class);
+    private final GmailSyncService gmailSyncService;
+
+    public EmailSyncScheduler(GmailSyncService gmailSyncService) {
+        this.gmailSyncService = gmailSyncService;
+    }
 
     /**
      * Hourly scaffold for pulling incoming emails per user.
@@ -16,6 +21,11 @@ public class EmailSyncScheduler {
      */
     @Scheduled(cron = "0 0 * * * *")
     public void runHourlyEmailSync() {
-        LOGGER.info("Hourly email sync scaffold executed. Implement Gmail pull logic here.");
+        LOGGER.info("Hourly email sync trigger fired.");
+        try {
+            gmailSyncService.runHourlySync();
+        } catch (Exception ex) {
+            LOGGER.error("Hourly email sync failed.", ex);
+        }
     }
 }
