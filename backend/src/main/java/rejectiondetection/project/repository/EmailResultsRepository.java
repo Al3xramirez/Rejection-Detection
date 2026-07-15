@@ -12,6 +12,8 @@ public interface EmailResultsRepository extends JpaRepository<EmailResultsEntity
 
     List<EmailResultsEntity> findByUserId(Long userId);
 
+  boolean existsByUserIdAndGmailMessageId(Long userId, String gmailMessageId);
+
     // Counts the number of email results for a specific user and status. This is useful for quickly determining
     // how many emails of a certain status (e.g., REJECTION) a user has received.
     long countByUserIdAndStatus(Long userId, String status);
