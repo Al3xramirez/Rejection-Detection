@@ -36,7 +36,7 @@ public class AuthenticatedUserService {
         String picture = principal.getAttribute("picture");
 
         // if email or google sub (which is the unique id for google accounts) is missing the method cannot be used to identify the user
-        // This is more of a triple check, rarely needed honestly.
+        // This is more of a triple check, rarely needed for this project but copilot suggested it
         if (email == null || googleSub == null) {
             return Optional.empty();
         }

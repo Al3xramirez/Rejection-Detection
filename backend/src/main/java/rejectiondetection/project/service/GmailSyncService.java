@@ -11,8 +11,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import rejectiondetection.project.dto.GmailMessageEnvelope;
-import rejectiondetection.project.dto.ParsedEmailPayload;
+import rejectiondetection.project.dto.GmailMessageEnvelopeDto;
+import rejectiondetection.project.dto.ParsedEmailPayloadDto;
 import rejectiondetection.project.entity.EmailResultsEntity;
 import rejectiondetection.project.entity.GmailOAuthTokenEntity;
 import rejectiondetection.project.entity.UsersEntity;
@@ -74,11 +74,11 @@ public class GmailSyncService {
         String userLabel = user.getEmail() == null ? "unknown-email" : user.getEmail();
 
         // TODO: Replace with Gmail API messages.list + incremental sync support.
-        List<GmailMessageEnvelope> messages = pullRecentMessagesForUser(user);
+        List<GmailMessageEnvelopeDto> messages = pullRecentMessagesForUser(user);
         LOGGER.info("Gmail sync candidate user={} messageCount={}", userLabel, messages.size());
 
-        for (GmailMessageEnvelope message : messages) {
-            ParsedEmailPayload payload = parseMessagePayload(message);
+        for (GmailMessageEnvelopeDto message : messages) {
+            ParsedEmailPayloadDto payload = parseMessagePayload(message);
             LOGGER.debug(
                 "Parsed Gmail payload user={} messageId={} from={} subject={}",
                 userLabel,
@@ -91,7 +91,7 @@ public class GmailSyncService {
         }
     }
 
-    private void persistDetectionResult(UsersEntity user, ParsedEmailPayload payload) {
+    private void persistDetectionResult(UsersEntity user, ParsedEmailPayloadDto payload) {
         if (payload.gmailMessageId() == null || payload.gmailMessageId().isBlank()) {
             LOGGER.warn("Skipping Gmail payload for userId={} because message id is missing.", user.getId());
             return;
@@ -127,14 +127,14 @@ public class GmailSyncService {
         emailResultsRepository.save(entity);
     }
 
-    private List<GmailMessageEnvelope> pullRecentMessagesForUser(UsersEntity user) {
+    private List<GmailMessageEnvelopeDto> pullRecentMessagesForUser(UsersEntity user) {
         // TODO: Load the user's active token and call Gmail messages.list/messages.get.
         // TODO: Implement Gmail API call(s) using stored OAuth credentials.
         return Collections.emptyList();
     }
 
-    private ParsedEmailPayload parseMessagePayload(GmailMessageEnvelope message) {
-        return new ParsedEmailPayload(
+    private ParsedEmailPayloadDto parseMessagePayload(GmailMessageEnvelopeDto message) {
+        return new ParsedEmailPayloadDto(
             message.gmailMessageId(),
             message.threadId(),
             blankToEmpty(message.fromAddress()),
@@ -145,7 +145,7 @@ public class GmailSyncService {
         );
     }
 
-    private String buildDetectionBody(GmailMessageEnvelope message) {
+    private String buildDetectionBody(GmailMessageEnvelopeDto message) {
         if (message.bodyText() != null && !message.bodyText().isBlank()) {
             return message.bodyText().trim();
         }

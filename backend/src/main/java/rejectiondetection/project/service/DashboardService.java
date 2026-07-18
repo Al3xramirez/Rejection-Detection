@@ -20,42 +20,49 @@ import rejectiondetection.project.repository.EmailResultsRepository;
 @Service
 public class DashboardService {
 
+    
     private static final String STATUS_REJECTION = "REJECTION";
     private static final String STATUS_POSSIBLE_REJECTION = "POSSIBLE_REJECTION";
     private static final String STATUS_NOT_REJECTION = "NOT_REJECTION";
 
+    //private instances of services and repositories needed to build the dashboard, injected via constructor
     private final AuthenticatedUserService authenticatedUserService;
     private final EmailResultsRepository emailResultsRepository;
 
+    //constructor
     public DashboardService(AuthenticatedUserService authenticatedUserService, EmailResultsRepository emailResultsRepository) {
         
         this.authenticatedUserService = authenticatedUserService;
         this.emailResultsRepository = emailResultsRepository;
     }
 
+    /*
+     * Builds the dashboard for the authenticated user.
+     * This includes counts of rejections, possible rejections, and acceptances,
+     * as well as monthly status points and recent rejections.
+     */
     public Optional<DashboardResponseDto> buildDashboard(OAuth2User principal) {
+        // checks the authenticated user from the OAuth2 principal, if not authenticated returns empty optional
         Optional<UsersEntity> maybeUser = authenticatedUserService.ensureAndGetUser(principal);
         if (maybeUser.isEmpty()) {
             return Optional.empty();
         }
 
+        // retrieves the user ID from the authenticated user entity
         Long userId = maybeUser.get().getId();
 
+        // retrieves counts of rejections, possible rejections, and acceptances for the user from the email results repository
         long rejectionCount = emailResultsRepository.countByUserIdAndStatus(userId, STATUS_REJECTION);
-
         long possibleRejectionCount = emailResultsRepository.countByUserIdAndStatus(userId, STATUS_POSSIBLE_REJECTION);
         long acceptanceCount = emailResultsRepository.countByUserIdAndStatus(userId, STATUS_NOT_REJECTION);
-
-        List<MonthlyStatusPointDto> monthly = toMonthlyStatusPoints(
-            emailResultsRepository.findMonthlyCountsByStatus(userId)
-        );
-
+        List<MonthlyStatusPointDto> monthly = toMonthlyStatusPoints(emailResultsRepository.findMonthlyCountsByStatus(userId));
         List<DashboardRejectionItemDto> recentRejections = emailResultsRepository
             .findTop50ByUserIdOrderByReceivedAtDesc(userId)
             .stream()
             .map(this::toRejectionItem)
             .toList();
 
+        // constructs and returns the dashboard response DTO with the retrieved data
         return Optional.of(new DashboardResponseDto(
             rejectionCount,
             possibleRejectionCount,
@@ -65,6 +72,7 @@ public class DashboardService {
         ));
     }
 
+    // Helper method to convert raw query results into a list of MonthlyStatusPointDto, which contains the monthly counts of each status for the dashboard chart.
     private List<MonthlyStatusPointDto> toMonthlyStatusPoints(List<Object[]> rows) {
         Map<String, long[]> buckets = new LinkedHashMap<>();
 
@@ -98,6 +106,7 @@ public class DashboardService {
             .toList();
     }
 
+    // Helper method to convert an EmailResultsEntity into a DashboardRejectionItemDto for the dashboard feed.
     private DashboardRejectionItemDto toRejectionItem(EmailResultsEntity entity) {
         return new DashboardRejectionItemDto(
             entity.getId(),

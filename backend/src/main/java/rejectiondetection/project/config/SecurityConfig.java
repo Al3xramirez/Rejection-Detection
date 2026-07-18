@@ -1,9 +1,14 @@
 package rejectiondetection.project.config;
 
+import java.util.LinkedHashMap;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -21,7 +26,10 @@ import java.util.List;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+        HttpSecurity http,
+        ClientRegistrationRepository clientRegistrationRepository
+    ) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeHttpRequests(auth -> auth
@@ -29,6 +37,9 @@ public class SecurityConfig {
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
+                .authorizationEndpoint(endpoint -> endpoint
+                    .authorizationRequestResolver(googleAuthorizationRequestResolver(clientRegistrationRepository))
+                ) 
                 .defaultSuccessUrl("http://localhost:5173/dashboard", true) //redirect to dashboard page now
             ) 
             .logout(Customizer.withDefaults());
@@ -51,6 +62,34 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
+    }
+
+    @Bean
+    public OAuth2AuthorizationRequestResolver googleAuthorizationRequestResolver(
+        ClientRegistrationRepository clientRegistrationRepository
+    ) {
+        DefaultOAuth2AuthorizationRequestResolver defaultResolver =
+            new DefaultOAuth2AuthorizationRequestResolver(
+                clientRegistrationRepository,
+                "/oauth2/authorization"
+            );
+
+        return request -> customizeAuthorizationRequest(defaultResolver.resolve(request));
+    }
+
+    private OAuth2AuthorizationRequest customizeAuthorizationRequest(OAuth2AuthorizationRequest request) {
+        if (request == null) {
+            return null;
+        }
+
+        LinkedHashMap<String, Object> parameters = new LinkedHashMap<>(request.getAdditionalParameters());
+        parameters.put("access_type", "offline");
+        parameters.put("prompt", "consent");
+        parameters.put("include_granted_scopes", "true");
+
+        return OAuth2AuthorizationRequest.from(request)
+            .additionalParameters(parameters)
+            .build();
     }
 
 }

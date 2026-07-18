@@ -16,8 +16,7 @@ public class EmailSyncScheduler {
     }
 
     /**
-     * Hourly scaffold for pulling incoming emails per user.
-     * Real Gmail sync logic will be implemented here after OAuth token persistence is added.
+     * Scheduler calls gmalSyncService every hour, a simple calling class to keep the scheduling logic separate from the actual sync logic.
      */
     @Scheduled(cron = "0 0 * * * *")
     public void runHourlyEmailSync() {
