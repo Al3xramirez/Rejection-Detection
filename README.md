@@ -7,7 +7,7 @@ Rejection Detection is a full-stack app made for the purpose of showing you reje
 - Connects a Google account through OAuth2.
 - Pulls Gmail messages for authenticated users.
 - Parses each message into structured fields like sender, subject, body, timestamp, and company guess.
-- Shows a dashboard with rejection counts and history.
+- Shows a dashboard with rejection counts, history, and a funny message letting you knowe you got rejected.
 
 ## Why did I make this?
 
@@ -22,3 +22,10 @@ Rejection Detection is a full-stack app made for the purpose of showing you reje
   <img <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/maven/maven-original.svg"  width="45" alt="Maven" />
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/mysql/mysql-original-wordmark.svg" width="45" alt="MySQL" />
 </div>
+
+## Notes
+- This is still currently in local production so currently there is no deployment.
+- There are env. varaibles, Google OAuth authorization, etc that would need to be added by the user in order for this website to function.
+- "works on my machine" status currently.
+- Instructions on how to operate the website is a WIP.
+
