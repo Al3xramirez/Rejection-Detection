@@ -74,7 +74,21 @@ public class SecurityConfig {
                 "/oauth2/authorization"
             );
 
-        return request -> customizeAuthorizationRequest(defaultResolver.resolve(request));
+        return new OAuth2AuthorizationRequestResolver() {
+            
+    @Override
+    public OAuth2AuthorizationRequest resolve(jakarta.servlet.http.HttpServletRequest request) {
+        return customizeAuthorizationRequest(defaultResolver.resolve(request));
+    }
+
+    @Override
+    public OAuth2AuthorizationRequest resolve(
+        jakarta.servlet.http.HttpServletRequest request,
+        String clientRegistrationId
+    ) {
+        return customizeAuthorizationRequest(defaultResolver.resolve(request, clientRegistrationId));
+    }
+};
     }
 
     private OAuth2AuthorizationRequest customizeAuthorizationRequest(OAuth2AuthorizationRequest request) {

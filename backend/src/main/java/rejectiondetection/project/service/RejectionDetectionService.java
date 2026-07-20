@@ -11,6 +11,7 @@ public class RejectionDetectionService {
     public static final String STATUS_REJECTION = "REJECTION";
     public static final String STATUS_POSSIBLE_REJECTION = "POSSIBLE_REJECTION";
     public static final String STATUS_NOT_REJECTION = "NOT_REJECTION";
+    public static final String STATUS_UNRELATED = "UNRELATED";
 
     private static final String CONFIDENCE_HIGH = "HIGH";
     private static final String CONFIDENCE_MEDIUM = "MEDIUM";
@@ -24,15 +25,18 @@ public class RejectionDetectionService {
         "we chose another candidate",
         "not selected",
         "application was unsuccessful",
-        "unfortunately"
+        "we will not be moving forward",
+        "we have decided to move forward with other candidates",
+        "we have decided to move forward with other applicants"
     );
 
     private static final List<String> MODERATE_REJECTION_PHRASES = List.of(
         "moving forward with other candidates",
         "wont be moving forward",
-        "won't be moving forward",
         "thank you for your interest",
-        "not the right fit at this time"
+        "not the right fit at this time",
+        "we will not be proceeding"
+        
     );
 
     private static final List<String> HIRING_CONTEXT_KEYWORDS = List.of(
@@ -42,7 +46,10 @@ public class RejectionDetectionService {
         "interview",
         "candidate",
         "hiring team",
-        "recruiter"
+        "recruiter",
+        "job",
+        "offer",
+        "next steps"
     );
 
     private static final List<String> POSITIVE_ADVANCEMENT_PHRASES = List.of(
@@ -51,16 +58,26 @@ public class RejectionDetectionService {
         "offer",
         "congratulations",
         "move to next round",
-        "congratulations!,",
         "we would like to invite you",
-        "we are excited to move forward"
+        "we are excited to move forward",
+        "we are pleased to offer you",
+        "we are happy to move forward",
+        "we are excited to move forward with you",
+        "we are pleased to offer you the position",
+        "we are happy to move forward with your application"
     );
 
     private static final List<String> MARKETING_HINTS = List.of(
         "unsubscribe",
-        "view in browser",
         "marketing",
-        "promo"
+        "promo",
+        "newsletter",
+        "advertisement",
+        "special offer",
+        "limited time offer",
+        "exclusive deal",
+        "sale",
+        "discount"
     );
 
     public DetectionResult detect(String fromAddress, String subject, String body) {
@@ -73,48 +90,65 @@ public class RejectionDetectionService {
         // Combine subject and body for easier searching, but keep sender separate for certain heuristics
         String fullText = (normalizedSubject + " " + normalizedBody).trim();
 
-        // Whole bunch of if statements for now to determine rejection status based upon keywords and phrases.
-        // my later TODO will try incorporate a more advanced algorithmic approach, not sure where I would start though
+        int rejectionScore = 0;
+        int positiveScore = 0;
+        int marketingScore = 0;
 
+        String reason = "No rejection signal matched";
 
-        // ContainsAny() checks if any phraces are in "fullText".
-        if (containsAny(fullText, POSITIVE_ADVANCEMENT_PHRASES)) {
-            return new DetectionResult(STATUS_NOT_REJECTION, "Positive advancement language", CONFIDENCE_LOW);
+        boolean strongRejectionSignal = containsAnyNormalized(fullText, STRONG_REJECTION_PHRASES);
+        boolean moderateRejectionSignal = containsAnyNormalized(fullText, MODERATE_REJECTION_PHRASES);
+        boolean positiveSignal = containsAnyNormalized(fullText, POSITIVE_ADVANCEMENT_PHRASES);
+        boolean marketingSignal = containsAnyNormalized(fullText, MARKETING_HINTS);
+        boolean hiringContextDetected = containsAnyNormalized(fullText, HIRING_CONTEXT_KEYWORDS)
+            || senderLooksLikeRecruiting(normalizedSender);
+
+        // Keep unrelated email categories out of the database entirely.
+        if (marketingSignal && !hiringContextDetected && !strongRejectionSignal && !moderateRejectionSignal) {
+            return new DetectionResult(STATUS_UNRELATED, "Likely marketing content", CONFIDENCE_LOW);
         }
 
-        // Strong rejections signals should be pretty definitive
-        if (containsAny(fullText, STRONG_REJECTION_PHRASES)) {
-            String reason = firstMatch(fullText, STRONG_REJECTION_PHRASES);
+        if (!hiringContextDetected && !strongRejectionSignal && !moderateRejectionSignal && !positiveSignal) {
+            return new DetectionResult(STATUS_UNRELATED, "No hiring context detected", CONFIDENCE_LOW);
+        }
+
+        if (positiveSignal) {
+            positiveScore += 6;
+        }
+
+        if (marketingSignal) {
+            marketingScore += 4;
+        }
+
+        if (strongRejectionSignal) {
+            rejectionScore += 8;
+            reason = firstMatchNormalized(fullText, STRONG_REJECTION_PHRASES);
+        }
+
+        if (moderateRejectionSignal) {
+            rejectionScore += 4;
+            reason = firstMatchNormalized(fullText, MODERATE_REJECTION_PHRASES);
+        }
+
+        int strongWordMatches = countPhraseWordMatches(fullText, STRONG_REJECTION_PHRASES);
+        int moderateWordMatches = countPhraseWordMatches(fullText, MODERATE_REJECTION_PHRASES);
+
+        rejectionScore += strongWordMatches;
+        rejectionScore += moderateWordMatches;
+
+        if (hiringContextDetected) {
+            rejectionScore += 3;
+        }
+
+        int totalScore = rejectionScore - positiveScore - marketingScore;
+
+        if (totalScore >= 8) {
             return new DetectionResult(STATUS_REJECTION, reason, CONFIDENCE_HIGH);
+        } else if (totalScore >= 4) {
+            return new DetectionResult(STATUS_POSSIBLE_REJECTION, reason, CONFIDENCE_MEDIUM);
         }
 
-        // Moderate rejection signals require additional context to be more confident
-        // If there is a moderate rejction phrase, but does not contain any hiring context, that will lean towards a rejection 
-        if (containsAny(fullText, MODERATE_REJECTION_PHRASES)) {
-            boolean hasHiringContext = containsAny(fullText, HIRING_CONTEXT_KEYWORDS)
-                || senderLooksLikeRecruiting(normalizedSender);
-
-            
-            // If it does contain hiring context, then its not a definitive rejection.
-            if (hasHiringContext) {
-                String reason = firstMatch(fullText, MODERATE_REJECTION_PHRASES);
-                return new DetectionResult(STATUS_POSSIBLE_REJECTION, reason, CONFIDENCE_MEDIUM);
-            }
-
-            return new DetectionResult(
-                STATUS_NOT_REJECTION,
-                "Moderate rejection phrase without hiring context",
-                CONFIDENCE_LOW
-            );
-        }
-
-        // This is simply to try to by-pass any false positives like marketing emails
-        if (containsAny(fullText, MARKETING_HINTS)) {
-            return new DetectionResult(STATUS_NOT_REJECTION, "Likely marketing content", CONFIDENCE_LOW);
-        }
-
-        // This is for the most part to catch emails not related to hiring at all
-        return new DetectionResult(STATUS_NOT_REJECTION, "No rejection signal matched", CONFIDENCE_LOW);
+        return new DetectionResult(STATUS_NOT_REJECTION, reason, CONFIDENCE_LOW);
     }
 
     // Heuristic to determine if the sender email address looks like it belongs to a recruiter or hiring team
@@ -124,16 +158,6 @@ public class RejectionDetectionService {
             || sender.contains("recruit")
             || sender.contains("talent")
             || sender.contains("hr");
-    }
-
-    // Checks if any of the given phrases are present in the text
-    private boolean containsAny(String haystack, List<String> needles) {
-        return needles.stream().anyMatch(haystack::contains);
-    }
-
-    // Returns the first matching phrase found in the text, or a default message if none are found
-    private String firstMatch(String haystack, List<String> needles) {
-        return needles.stream().filter(haystack::contains).findFirst().orElse("Matched heuristic");
     }
 
     // Normalizes the input string by removing diacritics, converting to lowercase, and removing non-alphanumeric characters
@@ -152,6 +176,62 @@ public class RejectionDetectionService {
             .trim();
     }
 
+    // Checks if any of the given phrases are present in the text after normalization
+    private boolean containsAnyNormalized(String haystack, List<String> needles) {
+        return needles.stream()
+            .map(this::normalize)
+            .anyMatch(haystack::contains);
+        }
+    // Returns the first matching phrase found in the text after normalization, or a default message if none are found
+    private String firstMatchNormalized(String haystack, List<String> needles) {
+        return needles.stream()
+            .map(this::normalize)
+            .filter(haystack::contains)
+            .findFirst()
+            .orElse("Matched heuristic");
+    }
+
+    // Counts the number of phrases that have at least two important word matches in the text
+    private int countPhraseWordMatches(String fullText, List<String> phrases) {
+        int score = 0;
+
+        for (String phrase : phrases) {
+            String normalizedPhrase = normalize(phrase);
+            String[] words = normalizedPhrase.split(" "); // Split the phrase into words
+
+            int matches = 0;
+
+            for (String word : words) {
+                if (isImportantWord(word) && fullText.contains(word)) {
+                    matches++;
+                }
+            }
+
+            if (matches >= 2) {
+                score += 2;
+            }
+
+            if (matches >= 3) {
+                score += 2;
+            }
+        }
+
+        return score;
+    }   
+
+    // Counts the number of phrases that are present in the text after normalization
+    private boolean isImportantWord(String word) {
+        return word.length() >= 4
+            && !word.equals("with")
+            && !word.equals("your")
+            && !word.equals("have")
+            && !word.equals("will")
+            && !word.equals("this")
+            && !word.equals("that")
+            && !word.equals("from")
+            && !word.equals("thank")
+            && !word.equals("interest");
+    }
     //public record to hold results of the detection
     public record DetectionResult(String status, String reason, String confidence) {
     }
