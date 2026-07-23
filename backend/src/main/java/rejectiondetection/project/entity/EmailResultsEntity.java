@@ -55,7 +55,7 @@ public class EmailResultsEntity {
 	@Column(name = "matched_phrase", length = 255)
 	private String matchedPhrase;
 
-	@Column(name = "summary", columnDefinition = "TEXT")
+	@Column(name = "summary", columnDefinition = "MEDIUMTEXT")
 	private String summary;
 
 	@Column(name = "funny_message", length = 255)

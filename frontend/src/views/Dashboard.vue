@@ -3,7 +3,9 @@ import { onMounted, ref } from 'vue'
 import FooterTabs from '../components/FooterTabs.vue'
 
 const isLoading = ref(true)
+const isSyncing = ref(false)
 const errorMessage = ref('')
+const syncMessage = ref('')
 const dashboard = ref({
   rejectionCount: 0,
   possibleRejectionCount: 0,
@@ -15,6 +17,7 @@ const dashboard = ref({
 async function loadDashboard() {
   isLoading.value = true
   errorMessage.value = ''
+  syncMessage.value = ''
 
   try {
     const response = await fetch('/api/dashboard', { credentials: 'include' })
@@ -31,18 +34,60 @@ async function loadDashboard() {
   }
 }
 
+async function runManualSync() {
+  isSyncing.value = true
+  errorMessage.value = ''
+  syncMessage.value = ''
+
+  try {
+    const response = await fetch('/api/dashboard/sync', {
+      method: 'POST',
+      credentials: 'include',
+    })
+
+    const payload = await response.json().catch(() => ({}))
+
+    if (!response.ok) {
+      errorMessage.value = payload.error || 'Could not run manual sync.'
+      return
+    }
+
+    syncMessage.value = `Sync complete. Scanned ${payload.scannedCount ?? 0} emails and stored ${payload.persistedCount ?? 0} results.`
+
+    if (payload.dashboard) {
+      dashboard.value = payload.dashboard
+    } else {
+      await loadDashboard()
+    }
+  } catch {
+    errorMessage.value = 'Network error while running manual sync.'
+  } finally {
+    isSyncing.value = false
+  }
+}
+
 onMounted(loadDashboard)
 </script>
 
 <template>
   <main class="page-shell">
     <section class="page-panel">
-      <h1>Analytics Data</h1>
+      <div class="header-row">
+        <div>
+          <h1>Analytics Data</h1>
+          <p class="subtitle">Review rejection history and trigger Gmail sync when needed.</p>
+        </div>
+
+        <button class="sync-button" type="button" :disabled="isLoading || isSyncing" @click="runManualSync">
+          {{ isSyncing ? 'Syncing...' : 'Sync Now' }}
+        </button>
+      </div>
 
       <p v-if="isLoading" class="helper-text">Loading dashboard...</p>
-      <p v-else-if="errorMessage" class="helper-text error">{{ errorMessage }}</p>
+      <p v-if="errorMessage" class="helper-text error">{{ errorMessage }}</p>
+      <p v-if="syncMessage" class="helper-text success">{{ syncMessage }}</p>
 
-      <div v-else class="simple-view">
+      <div v-if="!isLoading && !errorMessage" class="simple-view">
         <section class="data-block">
           <h2>Totals</h2>
           <p>rejectionCount: {{ dashboard.rejectionCount }}</p>
@@ -105,6 +150,35 @@ onMounted(loadDashboard)
   font-size: 1.3rem;
 }
 
+.header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.subtitle {
+  margin: 0;
+  color: #b7becb;
+  font-size: 0.95rem;
+}
+
+.sync-button {
+  border: 1px solid #3d6df2;
+  background: linear-gradient(180deg, #4977ff 0%, #2e5cf0 100%);
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 112px;
+}
+
+.sync-button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
 .helper-text {
   margin: 0;
   color: #b7becb;
@@ -112,6 +186,10 @@ onMounted(loadDashboard)
 
 .helper-text.error {
   color: #ff9797;
+}
+
+.helper-text.success {
+  color: #91d9a7;
 }
 
 .simple-view {

@@ -21,6 +21,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import rejectiondetection.project.dto.GmailMessageEnvelopeDto;
 import rejectiondetection.project.dto.ParsedEmailPayloadDto;
@@ -46,9 +47,16 @@ public class GmailSyncService {
     private final GmailOAuthTokenRepository gmailOAuthTokenRepository;
     private final EmailResultsRepository emailResultsRepository;
     private final RejectionDetectionService rejectionDetectionService;
+    private final AuthenticatedUserService authenticatedUserService;
     private final GmailOAuthTokenService gmailOAuthTokenService;
     private final ObjectMapper objectMapper;
     private final HttpClient httpClient;
+
+    // Constants for sync behavior, sets initial sync lookback to 90 days and limits the maximum number of messages fetched in a single request to 100.
+    // These help control the amount of data processed as for one api call, we are fetching a multiple number of messages which can overwhelm the system if not limited.
+    private static final int INITIAL_SYNC_LOOKBACK_DAYS = 90;
+    private static final int MAX_MESSAGE_FETCH_LIMIT = 100;
+
 
     private static final Set<String> ALWAYS_PERSIST_STATUSES = Set.of(
         RejectionDetectionService.STATUS_REJECTION,
@@ -62,6 +70,7 @@ public class GmailSyncService {
         GmailOAuthTokenRepository gmailOAuthTokenRepository,
         EmailResultsRepository emailResultsRepository,
         RejectionDetectionService rejectionDetectionService,
+        AuthenticatedUserService authenticatedUserService,
         GmailOAuthTokenService gmailOAuthTokenService,
         ObjectMapper objectMapper
     ) {
@@ -69,6 +78,7 @@ public class GmailSyncService {
         this.gmailOAuthTokenRepository = gmailOAuthTokenRepository;
         this.emailResultsRepository = emailResultsRepository;
         this.rejectionDetectionService = rejectionDetectionService;
+        this.authenticatedUserService = authenticatedUserService;
         this.gmailOAuthTokenService = gmailOAuthTokenService;
         this.objectMapper = objectMapper;
         this.httpClient = HttpClient.newHttpClient();
@@ -88,6 +98,83 @@ public class GmailSyncService {
 
         LOGGER.info("Gmail sync run completed.");
     }
+
+    // This method is called when a user triggers a manual sync from the frontend button
+    // It will fetch recent messages since the last sync or if it's the first sync, it will fetch messages from the last 90 days.
+    public ManualSyncResult runManualSync(OAuth2User principal) {
+        Optional<UsersEntity> maybeUser =
+            authenticatedUserService.ensureAndGetUser(principal);
+
+        if (maybeUser.isEmpty()) {
+            return new ManualSyncResult(
+                0,
+                0,
+                "Unauthenticated",
+                false
+            );
+        }
+
+        UsersEntity user = maybeUser.get();
+        GmailOAuthTokenEntity token = resolveSyncToken(user);
+
+        if (token == null) {
+            return new ManualSyncResult(
+                0,
+                0,
+                "No active Gmail token found",
+                false
+            );
+        }
+
+        LocalDateTime syncStartedAt = LocalDateTime.now();
+
+        final List<GmailMessageEnvelopeDto> messages;
+
+        try {
+            messages = pullRecentMessagesForUser(token);
+        } catch (RuntimeException ex) {
+            LOGGER.error(
+                "Manual Gmail sync failed for user={}",
+                user.getEmail(),
+                ex
+            );
+
+            // Do not update lastSyncAt when Gmail failed.
+            return new ManualSyncResult(
+                0,
+                0,
+                "Gmail API request failed. Check backend logs.",
+                false
+            );
+        }
+
+        int persistedCount = 0;
+
+        LOGGER.info(
+            "Manual Gmail sync user={} fetchedMessageCount={}",
+            user.getEmail(),
+            messages.size()
+        );
+
+        for (GmailMessageEnvelopeDto message : messages) {
+            ParsedEmailPayloadDto payload = parseMessagePayload(message);
+
+            if (persistDetectionResult(user, payload)) {
+                persistedCount++;
+            }
+        }
+
+        // Only advance the cursor after a successful Gmail request.
+        token.setLastSyncAt(syncStartedAt);
+        gmailOAuthTokenRepository.save(token);
+
+        return new ManualSyncResult(
+            messages.size(),
+            persistedCount,
+            "Manual sync completed",
+            true
+        );
+}
 
     // Lists users who have authorized Gmail access and are candidates for syncing.
     private List<UsersEntity> listSyncCandidates() {
@@ -134,12 +221,12 @@ public class GmailSyncService {
     }
 
     // Persists the detection result for a given user and email payload if it meets the criteria for storage.
-    private void persistDetectionResult(UsersEntity user, ParsedEmailPayloadDto payload) {
+    private boolean persistDetectionResult(UsersEntity user, ParsedEmailPayloadDto payload) {
 
         // Skip processing if the Gmail message ID is missing
         if (payload.gmailMessageId() == null || payload.gmailMessageId().isBlank()) {
             LOGGER.warn("Skipping Gmail payload for userId={} because message id is missing.", user.getId());
-            return;
+            return false;
         }
         // Check if the email has already been processed to avoid duplicate entries
         if (emailResultsRepository.existsByUserIdAndGmailMessageId(user.getId(), payload.gmailMessageId())) {
@@ -148,7 +235,7 @@ public class GmailSyncService {
                 user.getId(),
                 payload.gmailMessageId()
             );
-            return;
+            return false;
         }
 
         RejectionDetectionService.DetectionResult result = rejectionDetectionService.detect(
@@ -164,9 +251,10 @@ public class GmailSyncService {
                 payload.gmailMessageId(),
                 result.status()
             );
-            return;
+            return false;
         }
 
+        // sets the fields of EmailResultsEntity into the database
         EmailResultsEntity entity = new EmailResultsEntity();
         entity.setUserId(user.getId());
         entity.setGmailMessageId(payload.gmailMessageId());
@@ -180,6 +268,7 @@ public class GmailSyncService {
         entity.setReceivedAt(payload.receivedAt() == null ? LocalDateTime.now() : payload.receivedAt());
 
         emailResultsRepository.save(entity);
+        return true;
     }
 
     // Determines whether the detection result should be persisted (stored in the database) based on its status.
@@ -210,20 +299,35 @@ public class GmailSyncService {
         return token;
     }
 
+    // Pulls recent Gmail messages for a specific user using their OAuth token, starting from the last 90 days when lastSyncAt is null.
     private List<GmailMessageEnvelopeDto> pullRecentMessagesForUser(GmailOAuthTokenEntity token) {
+            
         if (token == null || token.getAccessToken() == null || token.getAccessToken().isBlank()) {
             return Collections.emptyList();
         }
 
-        LocalDateTime syncCursor = token.getLastSyncAt() != null ? token.getLastSyncAt() : token.getCreatedAt();
-        List<String> messageIds = listRecentMessageIds(token.getAccessToken(), syncCursor);
+        LocalDateTime syncCursor = token.getLastSyncAt();
+
+        // First sync: search historical messages instead of starting
+        // from the moment the OAuth token row was created.
+        if (syncCursor == null) {
+            syncCursor = LocalDateTime.now()
+                .minusDays(INITIAL_SYNC_LOOKBACK_DAYS);
+        }
+
+        List<String> messageIds =
+            listRecentMessageIds(token.getAccessToken(), syncCursor);
+
         if (messageIds.isEmpty()) {
             return Collections.emptyList();
         }
 
         List<GmailMessageEnvelopeDto> messages = new ArrayList<>();
+
         for (String messageId : messageIds) {
-            GmailMessageEnvelopeDto envelope = fetchMessageEnvelope(token.getAccessToken(), messageId);
+            GmailMessageEnvelopeDto envelope =
+                fetchMessageEnvelope(token.getAccessToken(), messageId);
+
             if (envelope != null) {
                 messages.add(envelope);
             }
@@ -246,9 +350,14 @@ public class GmailSyncService {
                     .build();
 
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    LOGGER.warn("Failed to list Gmail messages statusCode={}", response.statusCode());
-                    return Collections.emptyList();
+                    LOGGER.error(  "Gmail messages.list failed. statusCode={} responseBody={}", response.statusCode(), response.body()
+                    );
+
+                    throw new IllegalStateException(
+                        "Gmail API returned HTTP " + response.statusCode()
+                    );  
                 }
 
                 JsonNode root = objectMapper.readTree(response.body());
@@ -259,16 +368,29 @@ public class GmailSyncService {
                         if (messageId != null) {
                             ids.add(messageId);
                         }
+                        if(ids.size() >= MAX_MESSAGE_FETCH_LIMIT) {
+                            break;
+                        }
                     }
                 }
 
                 pageToken = textOrNull(root.path("nextPageToken"));
-            } while (pageToken != null);
+            } while (pageToken != null && ids.size() < MAX_MESSAGE_FETCH_LIMIT);
 
             return ids;
+
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+
+            throw new IllegalStateException(
+                "Gmail message listing was interrupted",
+                ex
+            );
         } catch (Exception ex) {
-            LOGGER.warn("Failed to list Gmail messages", ex);
-            return Collections.emptyList();
+            throw new IllegalStateException(
+            "Failed to list Gmail messages",
+            ex
+        );
         }
     }
 
@@ -505,6 +627,11 @@ public class GmailSyncService {
         return value == null || value.isBlank() ? null : value;
     }
 
+    public record ManualSyncResult(int scannedCount, int persistedCount, String message, boolean success) {
+    }
+
+    // Builds the URI for listing Gmail messages, including optional query parameters for filtering by last sync time and pagination. 
+    // maxResults is set to 100 to limit the number of messages fetched in a single request.
     private URI buildMessagesListUri(LocalDateTime lastSyncAt, String pageToken) {
         StringBuilder uri = new StringBuilder("https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=100");
 
