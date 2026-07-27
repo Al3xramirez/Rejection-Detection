@@ -4,6 +4,7 @@ import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
 import Profile from '../views/Profile.vue'
 import Settings from '../views/Settings.vue'
+import Results from '../views/Results.vue'
 
 // Router is responsible for creating the web history and defining the application's route structure.
 const router = createRouter({
@@ -14,6 +15,7 @@ const router = createRouter({
     { path: '/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } }, // requires authentication
     { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } }, // requires authentication
     { path: '/settings', name: 'Settings', component: Settings, meta: { requiresAuth: true } }, // requires authentication
+    { path: '/results', name: 'Results', component: Results, meta: { requiresAuth: true } } // requires authentication
   ],
 })
 

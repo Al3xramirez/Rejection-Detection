@@ -372,24 +372,6 @@ onMounted(loadDashboard)
             ✓
           </div>
         </article>
-
-        <!-- SCANNED -->
-        <article class="stat-card scanned-card">
-          <div>
-            <p class="stat-title">
-              Emails Scanned
-            </p>
-            <p class="stat-number scanned-number">
-              {{ lastScannedCount || '—' }}
-            </p>
-            <p class="stat-description">
-              Most recent Gmail sync
-            </p>
-          </div>
-          <div class="stat-icon scanned-icon">
-            ✉
-          </div>
-        </article>
       </section>
 
       <!-- CHART -->
@@ -431,9 +413,9 @@ onMounted(loadDashboard)
               Latest hiring decisions detected from Gmail
             </p>
           </div>
-          <button class="view-all-button">
+          <router-link to="/results" class="view-all-button">
             View all results →
-          </button>
+          </router-link>
         </div>
 
         <div class="recent-grid">
@@ -587,9 +569,6 @@ onMounted(loadDashboard)
                     {{ item.emailSubject || 'No subject' }}
                   </p>
                 </div>
-                <span class="status-pill acceptance-pill">
-                  Acceptance
-                </span>
               </div>
               <p class="result-summary">
                 {{ truncateSummary(item.summary) }}
@@ -598,9 +577,6 @@ onMounted(loadDashboard)
                 <span>
                   {{ formatDate(item.receivedAt) }}
                 </span>
-                <button>
-                  View Details
-                </button>
               </div>
             </article>
           </section>
@@ -757,11 +733,11 @@ onMounted(loadDashboard)
   background:
     linear-gradient(
       145deg,
-      #171d27,
-      #111720
+      #151617,
+      #151617
     );
 
-  border: 1px solid #2a3240;
+  border: 1px solid #0a0a0a;
   box-shadow:
     0 8px 26px
     rgba(0, 0, 0, 0.12);
@@ -847,10 +823,10 @@ onMounted(loadDashboard)
   background:
     linear-gradient(
       145deg,
-      #151b25,
-      #101720
+      #151617,
+      #151617
     );
-  border: 1px solid #2a3240;
+  border: 1px solid #090909;
 }
 
 .section-header {
@@ -874,9 +850,9 @@ onMounted(loadDashboard)
 
 .chart-filter {
   padding: 8px 12px;
-  background: #111720;
-  color: #cbd2dc;
-  border: 1px solid #303846;
+  background: #21c94b;
+  color: #070707;
+  border: 1px solid #040404;
   border-radius: 7px;
 }
 
@@ -903,18 +879,19 @@ onMounted(loadDashboard)
   background:
     linear-gradient(
       145deg,
-      #151b25,
-      #101720
+      #151617,
+      #151617
     );
-  border: 1px solid #2a3240;
+  border: 1px solid #151617;
 }
 
 .view-all-button {
   border: none;
   background: transparent;
-  color: #4f83ff;
+  color: #00ff88;
   cursor: pointer;
   font-size: 0.85rem;
+  text-decoration: none;
 }
 
 .recent-grid {
@@ -987,8 +964,8 @@ onMounted(loadDashboard)
   background:
     linear-gradient(
       145deg,
-      #171d27,
-      #121821
+      #151617,
+      #151617
     );
 }
 
@@ -1049,12 +1026,6 @@ onMounted(loadDashboard)
   border: 1px solid rgba(255, 159, 47, 0.35);
 }
 
-.acceptance-pill {
-  color: #44db86;
-  background: rgba(46, 213, 115, 0.1);
-  border: 1px solid rgba(46, 213, 115, 0.35);
-}
-
 .result-summary {
   margin: 16px 0;
   min-height: 58px;
@@ -1070,15 +1041,6 @@ onMounted(loadDashboard)
   gap: 10px;
   color: #818b9a;
   font-size: 0.72rem;
-}
-
-.result-footer button {
-  padding: 7px 10px;
-  border-radius: 6px;
-  border: 1px solid #323b49;
-  background: #171e28;
-  color: #cbd2dc;
-  cursor: pointer;
 }
 
 .empty-result {
