@@ -1,17 +1,23 @@
 package rejectiondetection.project.controller;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Optional;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import rejectiondetection.project.entity.UsersEntity;
 import rejectiondetection.project.service.AuthenticatedUserService;
 import rejectiondetection.project.service.GmailOAuthTokenService;
@@ -71,5 +77,14 @@ public class AuthController {
         response.put("gmailTokenStored", gmailOAuthTokenService.hasActiveToken(user.getId())); // insert info of gmail token in db
 
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/api/auth/logout")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> logout(HttpServletRequest request, HttpServletResponse response) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        new SecurityContextLogoutHandler().logout(request, response, authentication);
+
+        return ResponseEntity.ok(Map.of("message", "Logged out"));
     }
 }

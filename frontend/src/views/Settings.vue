@@ -1,18 +1,91 @@
 <script setup>
-/*
-  Settings view.
-  This view represents the settings page of the application.
-  It includes a header, some placeholder content, and the FooterTabs component.
-  This will eventually include user settings such as account preferences and privacy options, notifications, etc.
-*/
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import FooterTabs from '../components/FooterTabs.vue'
+
+const router = useRouter()
+
+const user = ref(null)
+const isLoading = ref(true)
+const isLoggingOut = ref(false)
+const errorMessage = ref('')
+
+async function loadProfile() {
+  isLoading.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch('/api/auth/me', { credentials: 'include' })
+    if (!response.ok) {
+      errorMessage.value = 'Unable to load your Google profile right now.'
+      return
+    }
+
+    user.value = await response.json()
+  } catch {
+    errorMessage.value = 'Network error while loading profile.'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+async function logout() {
+  isLoggingOut.value = true
+  errorMessage.value = ''
+
+  try {
+    const response = await fetch('/api/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    })
+
+    if (!response.ok) {
+      errorMessage.value = 'Could not log out right now.'
+      return
+    }
+
+    await router.push('/login')
+  } catch {
+    errorMessage.value = 'Network error while logging out.'
+  } finally {
+    isLoggingOut.value = false
+  }
+}
+
+onMounted(loadProfile)
 </script>
 
 <template>
   <main class="page-shell">
     <section class="page-panel">
       <h1>Settings</h1>
-      <p>Settings page content will go here.</p>
+
+      <p v-if="isLoading" class="helper-text">Loading profile...</p>
+      <p v-else-if="errorMessage" class="helper-text error">{{ errorMessage }}</p>
+
+      <div v-else-if="user" class="profile-card">
+        <img
+          v-if="user.picture"
+          :src="user.picture"
+          alt="Google profile picture"
+          class="avatar"
+        />
+        <div class="profile-meta">
+          <h2>{{ user.name || 'Google User' }}</h2>
+          <p>{{ user.email || 'No email provided' }}</p>
+        </div>
+      </div>
+
+      <p v-else class="helper-text">No profile data found.</p>
+
+      <button
+        class="logout-button"
+        type="button"
+        :disabled="isLoggingOut"
+        @click="logout"
+      >
+        {{ isLoggingOut ? 'Logging out...' : 'Logout' }}
+      </button>
     </section>
 
     <FooterTabs />
@@ -45,5 +118,58 @@ import FooterTabs from '../components/FooterTabs.vue'
 .page-panel p {
   margin: 0;
   color: #c4cbc7;
+}
+
+.helper-text {
+  color: #c4cbc7;
+}
+
+.helper-text.error {
+  color: #fca5a5;
+}
+
+.profile-card {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid #313834;
+  background: rgba(17, 20, 19, 0.95);
+  padding: 16px;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 50%;
+  border: 2px solid #22c55e;
+}
+
+.profile-meta h2 {
+  margin: 0 0 4px;
+  color: #22c55e;
+  font-size: 1.2rem;
+}
+
+.profile-meta p {
+  margin: 0;
+  color: #c4cbc7;
+}
+
+.logout-button {
+  margin-top: 16px;
+  border: 1px solid #ff6b6b;
+  background: linear-gradient(180deg, #ff7f7f, #ff6464);
+  color: #1a0707;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.logout-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
 }
 </style>

@@ -2,7 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Home from '../views/Home.vue'
 import Login from '../views/Login.vue'
 import Dashboard from '../views/Dashboard.vue'
-import Profile from '../views/Profile.vue'
 import Settings from '../views/Settings.vue'
 import Results from '../views/Results.vue'
 
@@ -13,7 +12,6 @@ const router = createRouter({
     { path: '/', name: 'Home', component: Home },
     { path: '/login', name: 'Login', component: Login },
     { path: '/dashboard', name: 'Dashboard', component: Dashboard, meta: { requiresAuth: true } }, // requires authentication
-    { path: '/profile', name: 'Profile', component: Profile, meta: { requiresAuth: true } }, // requires authentication
     { path: '/settings', name: 'Settings', component: Settings, meta: { requiresAuth: true } }, // requires authentication
     { path: '/results', name: 'Results', component: Results, meta: { requiresAuth: true } } // requires authentication
   ],

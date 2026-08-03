@@ -10,7 +10,6 @@
 <template>
   <footer class="footer-tabs">
     <router-link to="/dashboard" class="tab" active-class="active">Dashboard</router-link>
-    <router-link to="/profile" class="tab" active-class="active">Profile</router-link>
     <router-link to="/settings" class="tab" active-class="active">Settings</router-link>
   </footer>
 </template>
@@ -22,7 +21,7 @@
   right: 0;
   bottom: 0;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   border-top: 1px solid #252b28;
   background: rgba(10, 13, 12, 0.94);
   backdrop-filter: blur(10px);

@@ -147,6 +147,9 @@ function buildUniqueRejectionMessages(rejections) {
     'Career drama alert: {company} declined your app',
     'Inbox news: {company} closed the door for now',
     'Reality check from {company}: rejection received',
+    'Breaking news: {company} said no to your application',
+    'Womp Womp: {company} rejected your application',
+    'Welp: Time to move on to your next opportunity',
   ]
 
   const usedMessages = new Set()

@@ -32,9 +32,9 @@ public class SecurityConfig {
     ) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/dashboard/sync", "/api/detection/analyze"))
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/dashboard/sync", "/api/detection/analyze", "/api/auth/logout"))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/test", "/api/auth/google", "/api/auth/me", "/oauth2/**", "/login/**", "/error").permitAll()
+                .requestMatchers("/api/test", "/api/auth/google", "/api/auth/me", "/api/auth/logout", "/oauth2/**", "/login/**", "/error").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth -> oauth
