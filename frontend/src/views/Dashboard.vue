@@ -16,9 +16,23 @@ const isSyncing = ref(false)
 const errorMessage = ref('')
 const syncMessage = ref('')
 
+const isRejectionPopupOpen = ref(false)
+const rejectionPopupQueue = ref([])
+const rejectionPopupIndex = ref(0)
+const rejectionPopupMessages = ref([])
+
 const lastScannedCount = ref(0)
 
 const dashboard = ref({rejectionCount: 0, possibleRejectionCount: 0, acceptanceCount: 0, monthlyResults: [], results: [],})
+
+const currentPopupRejection = computed(() => {
+  return rejectionPopupQueue.value[rejectionPopupIndex.value] || null
+})
+
+const currentPopupMessage = computed(() => {
+  return rejectionPopupMessages.value[rejectionPopupIndex.value] ||
+    'HAHAHAH you got rejected -> No details available.'
+})
 
 /* -----------------------------
    Load Dashboard
@@ -55,6 +69,13 @@ async function runManualSync() {
   errorMessage.value = ''
   syncMessage.value = ''
 
+  const previousRejectionIds = new Set(
+    (dashboard.value.results || [])
+      .filter(item => item.status === 'REJECTION')
+      .map(item => item.id)
+      .filter(id => id != null)
+  )
+
   try {
     const response = await fetch('/api/dashboard/sync', {
       method: 'POST',
@@ -81,12 +102,71 @@ async function runManualSync() {
     } else {
       await loadDashboard()
     }
+
+    const newRejections = (dashboard.value.results || [])
+      .filter(item => item.status === 'REJECTION')
+      .filter(item => item.id != null && !previousRejectionIds.has(item.id))
+
+    if (newRejections.length) {
+      rejectionPopupQueue.value = newRejections
+      rejectionPopupMessages.value = buildUniqueRejectionMessages(newRejections)
+      rejectionPopupIndex.value = 0
+      isRejectionPopupOpen.value = true
+    }
   } catch {
     errorMessage.value =
       'Network error while running manual sync.'
   } finally {
     isSyncing.value = false
   }
+}
+
+function closeRejectionPopup() {
+  isRejectionPopupOpen.value = false
+  rejectionPopupQueue.value = []
+  rejectionPopupMessages.value = []
+  rejectionPopupIndex.value = 0
+}
+
+function showNextRejection() {
+  if (rejectionPopupIndex.value < rejectionPopupQueue.value.length - 1) {
+    rejectionPopupIndex.value += 1
+    return
+  }
+
+  closeRejectionPopup()
+}
+
+function buildUniqueRejectionMessages(rejections) {
+  const templates = [
+    'HAHAHAH you got rejected by {company}',
+    'Oof. {company} said no this round',
+    'Plot twist: {company} rejected you on your application',
+    'Recruiter update from {company}: not this time',
+    'Application checkpoint: {company} rejected this one',
+    'Career drama alert: {company} declined your app',
+    'Inbox news: {company} closed the door for now',
+    'Reality check from {company}: rejection received',
+  ]
+
+  const usedMessages = new Set()
+
+  return rejections.map((item, index) => {
+    const company = item?.companyName || 'Unknown Company'
+    const details = truncateSummary(item?.summary || item?.emailSubject || 'No details available.')
+    const template = templates[index % templates.length].replace('{company}', company)
+
+    let message = `${template} -> ${details}`
+    let duplicateCounter = 2
+
+    while (usedMessages.has(message)) {
+      message = `${template} -> ${details} (${duplicateCounter})`
+      duplicateCounter += 1
+    }
+
+    usedMessages.add(message)
+    return message
+  })
 }
 
 /* -----------------------------
@@ -468,9 +548,6 @@ onMounted(loadDashboard)
                 <span>
                   {{ formatDate(item.receivedAt) }}
                 </span>
-                <button>
-                  View Details
-                </button>
               </div>
             </article>
           </section>
@@ -583,6 +660,55 @@ onMounted(loadDashboard)
         </div>
       </section>
     </template>
+
+    <div
+      v-if="isRejectionPopupOpen && currentPopupRejection"
+      class="rejection-popup-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="New rejection detected"
+    >
+      <section class="rejection-popup">
+        <button
+          type="button"
+          class="popup-close-button"
+          @click="closeRejectionPopup"
+        >
+          ×
+        </button>
+
+        <p class="popup-badge">
+          New Rejection Found
+        </p>
+
+        <h3 class="popup-title">
+          {{ currentPopupRejection.companyName || 'Unknown Company' }}
+        </h3>
+
+        <p class="popup-message">
+          {{ currentPopupMessage }}
+        </p>
+
+        <p class="popup-subtitle">
+          {{ currentPopupRejection.emailSubject || 'No subject' }}
+        </p>
+
+        <div class="popup-actions">
+          <span class="popup-step">
+            {{ rejectionPopupIndex + 1 }} / {{ rejectionPopupQueue.length }}
+          </span>
+
+          <button
+            type="button"
+            class="popup-next-button"
+            @click="showNextRejection"
+          >
+            {{ rejectionPopupIndex < rejectionPopupQueue.length - 1 ? 'Next →' : 'Done' }}
+          </button>
+        </div>
+      </section>
+    </div>
+
     <FooterTabs />
 
   </main>
@@ -1084,6 +1210,101 @@ onMounted(loadDashboard)
 .green-empty {
   color: #3bd782;
   background: rgba(59, 215, 130, 0.08);
+}
+
+/* =================================
+   REJECTION POPUP
+================================= */
+
+.rejection-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 10, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  z-index: 50;
+}
+
+.rejection-popup {
+  width: min(560px, 100%);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 86, 95, 0.45);
+  background: linear-gradient(145deg, #17191f, #111318);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  padding: 22px;
+  position: relative;
+}
+
+.popup-close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border: 1px solid #2d3340;
+  border-radius: 50%;
+  background: #161b22;
+  color: #d8ddea;
+  cursor: pointer;
+}
+
+.popup-badge {
+  margin: 0;
+  display: inline-block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #ff868d;
+  background: rgba(255, 86, 95, 0.12);
+  border: 1px solid rgba(255, 86, 95, 0.35);
+  border-radius: 999px;
+  padding: 5px 10px;
+}
+
+.popup-title {
+  margin: 14px 0 10px;
+  color: #ffe3e5;
+  font-size: 1.35rem;
+}
+
+.popup-message {
+  margin: 0;
+  color: #ffd4d6;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.popup-subtitle {
+  margin: 12px 0 0;
+  color: #9da7b8;
+  font-size: 0.85rem;
+}
+
+.popup-actions {
+  margin-top: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.popup-step {
+  color: #8f98a7;
+  font-size: 0.82rem;
+}
+
+.popup-next-button {
+  border: 1px solid #ff6e77;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ff7a83, #ff5f69);
+  color: #1b080a;
+  font-weight: 700;
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.popup-next-button:hover {
+  filter: brightness(1.04);
 }
 
 /* =================================
