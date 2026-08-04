@@ -23,12 +23,6 @@ Rejection Detection is a full-stack app made for the purpose of showing you reje
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/mysql/mysql-original-wordmark.svg" width="45" alt="MySQL" />
 </div>
 
-## Notes
-- This is still currently in local production so currently there is no deployment.
-- There are env. varaibles, Google OAuth authorization, etc that would need to be added by the user in order for this website to function.
-- "works on my machine" status currently.
-- Instructions on how to operate the website is a WIP.
-
 ## Handoff Setup Guide (For Friends / Other Users)
 
 This section explains exactly how someone else can run this app after you hand it off.
