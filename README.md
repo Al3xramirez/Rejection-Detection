@@ -12,6 +12,7 @@ Rejection Detection is a full-stack app made for the purpose of showing you reje
 ## Why did I make this?
 
 - Initially, the purpose for this website was to keep track of the future rejection emails that I'll be receiving in the upcoming weeks, so I decided why not continue practicing coding, learning new ideas, and at the same time, cope by making an application turning hummiliation of job rejections into a funny and organized dashboard.
+- I also began learning docker and its capabilities which were then added onto this project
 ## Tech-Stack
 
 <div>
