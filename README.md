@@ -67,9 +67,9 @@ GOOGLE_OAUTH_CLIENT_SECRET=replace_me
 
 Important:
 
-- 'REJECTION_DETECTION_DB_USERNAME', 'REJECTION_DETECTION_DB_PASSWORD' are you're env variables for one of two db's you will need to set-up.
-- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` must come from Google Cloud OAuth credentials.
+- `REJECTION_DETECTION_DB_USERNAME`, `REJECTION_DETECTION_DB_PASSWORD` are you're env variables for one of two db's you will need to set-up.
 - `DOCKER_DB_USERNAME` and `DOCKER_DB_PASSWORD` are used by both MySQL and backend in `docker-compose.yml`. These are the second db env. variables you'll need to set up.
+- `GOOGLE_OAUTH_CLIENT_ID` and `GOOGLE_OAUTH_CLIENT_SECRET` must come from Google Cloud OAuth credentials.
 
 ### 4. Google OAuth configuration (A MUST)
 
@@ -97,7 +97,7 @@ In Google Cloud Console:
 - Add each friend email under OAuth consent screen -> Test users.
 - If you want broader access, publish the OAuth consent screen to Production.
 
-Without this step, friends will see "access blocked" or unauthorized login errors.
+Without this step, friends will see "access blocked" or unauthorized login errors as well as yourself.
 
 ### 5. Run the app with Docker
 
@@ -135,5 +135,7 @@ docker compose logs -f db
 4. Return to dashboard
 5. Press sync to scan Gmail messages
 
+### 7. You made it this far?
 
+- If you made it this far into this nightmare of env varaibles and installations, you're probably bored out of your mind or really intrigued by this, if so thanks. I have no plans to actually put this program onto a website so keeping it local for now :) I don't want to get more pissed off at deployment then I already have.
 
